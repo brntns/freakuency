@@ -1,0 +1,16 @@
+{
+  "name": "imageposter",
+  "description": "asdfasdf",
+  "readme": "asdfasdf",
+  "repository": "",
+  "version": "0.0.0",
+  "dependencies": {
+    "express": "^4.17.1",
+    "jimp": "^0.6.4",
+    "lodash": "^4.17.14",
+    "socket.io": "*"
+  },
+  "devDependencies": {
+    "pngjs": "*"
+  }
+}

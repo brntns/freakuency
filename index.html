@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Soundposter</title>
+	<script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+  <script src="assets/p5.min.js" charset="utf-8"></script>
+  <script src="assets/p5.sound.min.js" charset="utf-8"></script>
+  <link rel="stylesheet"  href="/assets/application.css"></style>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script>
+</head>
+
+<body style="width:100%;height:100vh;margin:0;">
+  <div class="ui">
+    <div class="input">
+      <input type="file" name="file-7[]" id="file-7" class="inputfile inputfile-6" />
+      <label for="file-7"><span></span> <strong><svg xmlns="http://www.w3.org/2000/svg" width="20" height="17" viewBox="0 0 20 17"><path d="M10 0l-5.2 4.9h3.3v5.1h3.8v-5.1h3.3l-5.2-4.9zm9.3 11.5l-3.2-2.1h-2l3.4 2.6h-3.5c-.1 0-.2.1-.2.1l-.8 2.3h-6l-.8-2.2c-.1-.1-.1-.2-.2-.2h-3.6l3.4-2.6h-2l-3.2 2.1c-.4.3-.7 1-.6 1.5l.6 3.1c.1.5.7.9 1.2.9h16.3c.6 0 1.1-.4 1.3-.9l.6-3.1c.1-.5-.2-1.2-.7-1.5z"/></svg> Choose a file&hellip;</strong></label>
+   </div>
+    <div class="ctrl">
+      <div class="button" id="play">Start</div>
+        <div class="button"  id="stop">Create Map</div>
+      <div class="button"  id="write">Create Images</div>
+         <div class="spacer">-</div>
+        <div class="button"  id="reset">Reset</div>
+        <div class="spacer">-</div>
+      <div class="button"  id="mic">Use Mic</div>
+    </div>
+<script>
+  var socket = io();
+  var temp = [];
+  var sound = '';
+var mic = '';
+
+  $( "#play" ).click(function() {
+    if(sound){
+        if(sound.isLoaded() && !sound.isPlaying()){
+        sound.play();
+      }
+    }
+  });
+  $( "#stop" ).click(function() {
+    if(sound){
+        if(sound.isLoaded() && sound.isPlaying()){
+            socket.emit('stop');
+        sound.stop();
+      }
+      
+    }
+    if(mic){
+        //   socket.emit('stop');
+      }
+       socket.emit('stop');
+  });
+  
+  $( "#write" ).click(function() {
+  
+      socket.emit('render');
+    
+  });
+
+  $( "#reset" ).click(function() {
+  
+      socket.emit('reset');
+    
+  });
+
+  $( "#mic" ).click(function() {
+    mic = new p5.AudioIn();
+    mic.start();
+    fft = new p5.FFT();
+    fft.setInput(mic);
+  });
+
+  $('#file-7').change(function(e){
+
+    var file = e.currentTarget.files[0];
+
+    var reader = new FileReader();
+    reader.readAsDataURL(file);
+      reader.onload = function() {
+      console.log(reader.result);
+      if(sound.isPlaying){
+        sound.stop();
+      }
+      sound = loadSound(reader.result);
+    };
+  })
+  $( '.inputfile' ).each( function(){
+    var $input   = $( this ),
+      $label   = $input.next( 'label' ),
+      labelVal = $label.html();
+
+    $input.on( 'change', function( e )
+    {
+      var fileName = '';
+
+      if( this.files && this.files.length > 1 )
+        fileName = ( this.getAttribute( 'data-multiple-caption' ) || '' ).replace( '{count}', this.files.length );
+      else if( e.target.value )
+        fileName = e.target.value.split( '\\' ).pop();
+
+      if( fileName )
+        $label.find( 'span' ).html( fileName );
+      else
+        $label.html( labelVal );
+    });
+
+    // Firefox bug fix
+    $input
+    .on( 'focus', function(){ $input.addClass( 'has-focus' ); })
+    .on( 'blur', function(){ $input.removeClass( 'has-focus' ); });
+  });
+function setup(){
+  var cnv = createCanvas(windowWidth/2, windowHeight);
+ // cnv.mouseClicked(togglePlay);
+  fft = new p5.FFT();
+// sound.amp(0.2);
+}
+function getLoudestFrequency() {
+    var nyquist = sampleRate() / 2; // 22050
+    var spectrum = fft.analyze(); // array of amplitudes in bins
+    var numberOfBins = spectrum.length;
+   // console.log(numberOfBins);
+    var maxAmp = 0;
+    var largestBin;
+
+    for (var i = 0; i < numberOfBins; i++) {
+        var thisAmp = spectrum[i]; // amplitude of current bin
+        if(spectrum[i] > 0){
+          temp.push(spectrum[i]);
+        }
+        if (thisAmp > maxAmp) {
+            maxAmp = thisAmp;
+            largestBin = i;
+        }
+    }
+   // console.log( temp);
+   
+      var loudestFreq = largestBin * (nyquist / numberOfBins);
+    // console.log(largestBin * (nyquist / numberOfBins))
+    return loudestFreq;
+}
+function draw(){
+  background(0);
+ // togglePlay();
+  if(sound){
+   // console.log(sound.isLoaded());
+   if(sound.isPlaying()){
+      fft.smooth();
+     var spectrum = fft.analyze();
+
+     var woop = fft.getEnergy("bass");
+     console.log( Math.floor(fft.getEnergy("lowMid")),  Math.floor(fft.getEnergy("mid")),  Math.floor(fft.getEnergy("highMid")));
+
+     noStroke();
+    // console.log(  Math.floor(makesum(spectrum)))
+      fill(Math.floor(fft.getEnergy("lowMid")),  Math.floor(fft.getEnergy("mid")),  Math.floor(fft.getEnergy("highMid"))); // spectrum is green
+    
+      if(sound.isPlaying()){
+
+         console.log('subbass:' +Math.floor(fft.getEnergy(20,60)),'bass:' +Math.floor(fft.getEnergy(60,250)),'lowmid:'+ Math.floor(fft.getEnergy(250,500)),'mid:'+ Math.floor(fft.getEnergy(500,2000)),'highmid:'+ Math.floor(fft.getEnergy(2000,4000)),'presence:'+ Math.floor(fft.getEnergy(4000,6000)),'brilliance:'+ Math.floor(fft.getEnergy(6000,20000)));
+           socket.emit('frame', [Math.floor(fft.getEnergy(20,60)),Math.floor(fft.getEnergy(60,250)),Math.floor(fft.getEnergy(250,500)),Math.floor(fft.getEnergy(500,2000)),Math.floor(fft.getEnergy(2000,4000)),Math.floor(fft.getEnergy(4000,6000)),Math.floor(fft.getEnergy(6000,20000))
+           ]);
+         }
+    
+        rect(0, 0,height,width)
+     
+     // getLoudestFrequency();
+     // var waveform = fft.waveform();
+     // noFill();
+     // beginShape();
+     // stroke(255,0,0); // waveform is red
+     // strokeWeight(1);
+     // for (var i = 0; i< waveform.length; i++){
+     //   var x = map(i, 0, waveform.length, 0, width);
+     //   var y = map( waveform[i], -1, 1, 0, height);
+     //   vertex(x,y);
+     // }
+     // endShape();
+   }
+  }
+    if(mic){
+   // console.log(sound.isLoaded());
+     // fft.setInput(mic);
+     var spectrum = fft.analyze();
+
+     noStroke();
+    console.log(  Math.floor(makesum(spectrum)))
+      fill(Math.floor(makesum(spectrum)),  Math.floor(makesum(spectrum)),  Math.floor(makesum(spectrum))); // spectrum is green
+    
+         // console.log( Math.floor(makesum(spectrum))*10);
+           socket.emit('frame',  Math.floor(getLoudestFrequency()));
+         
+    
+        rect(0, 0,height,width)
+     
+     // getLoudestFrequency();
+     // var waveform = fft.waveform();
+     // noFill();
+     // beginShape();
+     // stroke(255,0,0); // waveform is red
+     // strokeWeight(1);
+     // for (var i = 0; i< waveform.length; i++){
+     //   var x = map(i, 0, waveform.length, 0, width);
+     //   var y = map( waveform[i], -1, 1, 0, height);
+     //   vertex(x,y);
+     // }
+     // endShape();
+   }
+  
+}
+
+function  makesum (elmt){
+
+  var sum = 0;
+  var element =  Object.values(elmt);
+  //  console.log(element);
+  for( var i = 0; i < element.length; i++ ){
+  //  console.log(elmt[i]);
+      sum += element[i]; //don't forget to add the base
+  }
+
+  var avg = sum/element.length;
+  //sconsole.log(avg);
+  return avg;
+   
+}
+</script>
+
+
+</body>
+</html>
